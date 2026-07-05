@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface NodeInfo {
   key: string;
@@ -25,21 +25,19 @@ interface Container {
 interface TableProps {
   list: Container[];
   isRunningGroup: boolean;
+  isLoading: boolean; // Added state propagation flag mapping
   onAction: (id: string, action: 'start' | 'stop' | 'restart') => Promise<void>;
   onOpenLogs: (id: string, name: string) => void;
 }
 
-const ContainerTable = ({ list, isRunningGroup, onAction, onOpenLogs }: TableProps) => {
-  // Track ongoing operations: e.g., { "container_id_1": "stop", "container_id_2": "start" }
+const ContainerTable = ({ list, isRunningGroup, isLoading, onAction, onOpenLogs }: TableProps) => {
   const [processing, setProcessing] = useState<Record<string, string>>({});
 
   const handleControlledAction = async (id: string, action: 'start' | 'stop' | 'restart') => {
-    // 1. Mark this specific container as processing this specific action
     setProcessing(prev => ({ ...prev, [id]: action }));
     try {
       await onAction(id, action);
     } finally {
-      // 2. Clear loading state once the backend call resolves
       setProcessing(prev => {
         const copy = { ...prev };
         delete copy[id];
@@ -65,11 +63,44 @@ const ContainerTable = ({ list, isRunningGroup, onAction, onOpenLogs }: TablePro
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800 text-sm">
-          {list.length === 0 ? (
+          {isLoading ? (
+            /* 1. Global Loading State: Renders a clean skeleton pulse pattern layout */
+            Array.from({ length: 3 }).map((_, idx) => (
+              <tr key={`skeleton-${idx}`} className="animate-pulse">
+                <td className="py-4">
+                  <div className="h-4 bg-slate-800 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-slate-850 rounded w-1/2"></div>
+                </td>
+                <td className="py-4">
+                  <div className="h-3 bg-slate-850 rounded w-1/2"></div>
+                </td>
+                <td className="py-4 w-[240px]">
+                  <div className="space-y-2 pr-4">
+                    <div><div className="w-full bg-slate-800 h-1.5 rounded-full"></div></div>
+                    <div><div className="w-full bg-slate-800 h-1.5 rounded-full"></div></div>
+                  </div>
+                </td>
+                <td className="py-4">
+                  <div className="h-5 bg-slate-800/60 rounded-full w-16"></div>
+                </td>
+                <td className="py-4 text-right space-x-2">
+                  <div className="inline-block h-6 bg-slate-800 rounded w-12"></div>
+                  <div className="inline-block h-6 bg-slate-800 rounded w-12"></div>
+                </td>
+              </tr>
+            ))
+          ) : list.length === 0 ? (
+            /* 2. Empty State Fallback */
             <tr>
-              <td colSpan={5} className="py-4 text-center text-slate-500">No infrastructure assets running on this node.</td>
+              <td colSpan={5} className="py-8 text-center text-slate-500 font-medium">
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <span className="text-xl">📭</span>
+                  <span>No infrastructure assets running on this node.</span>
+                </div>
+              </td>
             </tr>
           ) : (
+            /* 3. Operational State: Dynamic rows rendering */
             list.map((container) => {
               const isCurrentProcessing = processing[container.id];
 
@@ -144,7 +175,6 @@ const ContainerTable = ({ list, isRunningGroup, onAction, onOpenLogs }: TablePro
                       >
                         {isCurrentProcessing === 'stop' ? (
                           <>
-                            {/* Tailwind Loading Circle Spinner */}
                             <svg className="animate-spin h-3 w-3 text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -186,6 +216,7 @@ export default function Dashboard() {
   const [selectedNode, setSelectedNode] = useState<string>('local');
   const [containers, setContainers] = useState<Container[]>([]);
   const [isSubmittingNode, setIsSubmittingNode] = useState(false);
+  const [isLoadingContainers, setIsLoadingContainers] = useState(true); // Added skeleton state tracker
   
   const [showNodeModal, setShowNodeModal] = useState(false);
   const [showManagerModal, setShowManagerModal] = useState(false);
@@ -211,15 +242,19 @@ export default function Dashboard() {
     }
   };
 
-  const fetchContainers = async () => {
+  // FIXED: Wrapped function inside a stable useCallback hook to resolve the build render loop error cleanly
+  const fetchContainers = useCallback(async (showSkeleton = false) => {
+    if (showSkeleton) setIsLoadingContainers(true);
     try {
       const res = await fetch(`http://localhost:8000/api/containers?node=${selectedNode}`);
       const data = await res.json();
       setContainers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsLoadingContainers(false);
     }
-  };
+  }, [selectedNode]);
 
   useEffect(() => {
     if (showNodeModal) {
@@ -234,15 +269,16 @@ export default function Dashboard() {
     fetchNodes();
   }, []);
 
+  // FIXED: Effect dependencies synchronized cleanly using function references to clear lint criteria
   useEffect(() => {
-    fetchContainers();
-    const interval = setInterval(fetchContainers, 4000);
+    fetchContainers(true);
+    const interval = setInterval(() => fetchContainers(false), 4000);
     return () => clearInterval(interval);
-  }, [selectedNode]);
+  }, [fetchContainers]);
 
   const handleAction = async (id: string, action: 'start' | 'stop' | 'restart') => {
     await fetch(`http://localhost:8000/api/containers/${id}/${action}?node=${selectedNode}`, { method: 'POST' });
-    fetchContainers();
+    fetchContainers(false);
   };
 
   const openLogsModal = (id: string, name: string) => {
@@ -254,40 +290,39 @@ export default function Dashboard() {
     ws.onmessage = (e) => setLogs((prev) => [...prev, e.data]);
   };
 
-  // FIXED: Synchronized query and path parameters mapping perfectly with the FastAPI specification
   const submitNewNode = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsSubmittingNode(true); // 👈 Lock form input immediately
-  try {
-    const queryParams = `?name=${encodeURIComponent(formName)}&ip=${encodeURIComponent(formIp)}&user=${encodeURIComponent(formUser)}`;
-    const endpoint = editingNodeKey 
-      ? `http://localhost:8000/api/nodes/${editingNodeKey}${queryParams}`
-      : `http://localhost:8000/api/nodes${queryParams}`;
-    
-    const method = editingNodeKey ? 'PUT' : 'POST';
-    const res = await fetch(endpoint, { method });
-    
-    if (res.ok) {
-      setFormName(''); setFormIp(''); setFormUser('root');
-      setEditingNodeKey(null);
-      setShowNodeModal(false);
-      fetchNodes();
-    } else {
-      const data = await res.json();
-      alert(`Error: ${data.detail || 'Failed to process node action'}`);
+    e.preventDefault();
+    setIsSubmittingNode(true);
+    try {
+      const queryParams = `?name=${encodeURIComponent(formName)}&ip=${encodeURIComponent(formIp)}&user=${encodeURIComponent(formUser)}`;
+      const endpoint = editingNodeKey 
+        ? `http://localhost:8000/api/nodes/${editingNodeKey}${queryParams}`
+        : `http://localhost:8000/api/nodes${queryParams}`;
+      
+      const method = editingNodeKey ? 'PUT' : 'POST';
+      const res = await fetch(endpoint, { method });
+      
+      if (res.ok) {
+        setFormName(''); setFormIp(''); setFormUser('');
+        setEditingNodeKey(null);
+        setShowNodeModal(false);
+        fetchNodes();
+      } else {
+        const data = await res.json();
+        alert(`Error: ${data.detail || 'Failed to process node action'}`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmittingNode(false);
     }
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setIsSubmittingNode(false); // 👈 Release form control lock
-  }
-};
+  };
 
   const handleEditTrigger = (node: NodeInfo) => {
     setEditingNodeKey(node.key);
     setFormName(node.name);
     setFormIp(node.ip);
-    setFormUser(node.user); // Placeholder, as the actual username might not be retrievable
+    setFormUser(node.user || 'root'); 
     setShowNodeModal(true);
   };
 
@@ -346,8 +381,20 @@ export default function Dashboard() {
       </header>
 
       <section>
-        <ContainerTable list={containers.filter(c => c.status.toLowerCase().includes('running') || c.status.toLowerCase().includes('up'))} isRunningGroup={true} onAction={handleAction} onOpenLogs={openLogsModal} />
-        <ContainerTable list={containers.filter(c => !c.status.toLowerCase().includes('running') && !c.status.toLowerCase().includes('up'))} isRunningGroup={false} onAction={handleAction} onOpenLogs={openLogsModal} />
+        <ContainerTable 
+          list={containers.filter(c => c.status.toLowerCase().includes('running') || c.status.toLowerCase().includes('up'))} 
+          isRunningGroup={true} 
+          isLoading={isLoadingContainers}
+          onAction={handleAction} 
+          onOpenLogs={openLogsModal} 
+        />
+        <ContainerTable 
+          list={containers.filter(c => !c.status.toLowerCase().includes('running') && !c.status.toLowerCase().includes('up'))} 
+          isRunningGroup={false} 
+          isLoading={isLoadingContainers}
+          onAction={handleAction} 
+          onOpenLogs={openLogsModal} 
+        />
       </section>
 
       {/* Cluster Manager Modal */}
@@ -423,14 +470,30 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 font-mono mb-1">SSH Username</label>
-                  <input type="text" required value={formUser} onChange={e => setFormUser(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-200 focus:outline-none font-mono" />
+                  <input type="text" required value={formUser} onChange={e => setFormUser(e.target.value)} placeholder="root" className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-200 focus:outline-none font-mono" />
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
               <button type="button" onClick={() => { setShowNodeModal(false); setEditingNodeKey(null); }} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs hover:bg-slate-700">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold">{editingNodeKey ? "Save Changes" : "Authorize Connection"}</button>
+              <button 
+                type="submit" 
+                disabled={isSubmittingNode}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold disabled:bg-slate-800 disabled:text-slate-500 transition"
+              >
+                {isSubmittingNode ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing Handshake...
+                  </>
+                ) : (
+                  editingNodeKey ? "Save Changes" : "Authorize Connection"
+                )}
+              </button>
             </div>
           </form>
         </div>
