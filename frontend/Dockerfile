@@ -1,12 +1,12 @@
 # --- Stage 1: Dependencies ---
-FROM node:22-alpine AS deps  # 👈 Updated
+FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # --- Stage 2: Builder ---
-FROM node:22-alpine AS builder  # 👈 Updated
+FROM node:22-alpine AS builder 
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

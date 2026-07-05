@@ -140,7 +140,7 @@ export default function Dashboard() {
       {/* Top Status Bar */}
       <header className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-indigo-400">DockPulse</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-indigo-400">InfraDeck</h1>
           <p className="text-sm text-slate-400">Infrastructure Management Dashboard</p>
         </div>
         <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg">
