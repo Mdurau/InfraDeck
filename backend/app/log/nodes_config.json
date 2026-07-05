@@ -1,0 +1,9 @@
+{
+    "tsts": {
+        "name": "tsts",
+        "user": "admin",
+        "connection": "ssh://admin@192.168.5.5",
+        "is_remote": true,
+        "ip": "192.168.5.5"
+    }
+}

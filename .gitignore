@@ -50,3 +50,4 @@ frontend/.turbo/
 .env.test.local
 .env.production.local
 *.env
+ backend/app/log/

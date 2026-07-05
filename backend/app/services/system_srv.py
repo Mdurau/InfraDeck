@@ -12,7 +12,7 @@ class SystemService:
         
         return {
             "cpu_usage_percent": cpu_percent,
-            "cpu_cores": cpu_cores,  # 👈 Added this line
+            "cpu_cores": cpu_cores,  
             "memory": {
                 "total_gb": round(memory.total / (1024**3), 2),
                 "used_gb": round(memory.used / (1024**3), 2),

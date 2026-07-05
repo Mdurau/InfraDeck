@@ -1,4 +1,4 @@
-name: DockPulse CI/CD Pipeline
+name: InfraDeck CI/CD Pipeline
 
 on:
   push:

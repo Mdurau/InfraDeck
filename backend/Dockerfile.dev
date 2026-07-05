@@ -8,9 +8,10 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies needed for standard building or tools
+# FIXED: Added openssh-client to provide ssh-keygen and ssh-keyscan binaries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy only requirements first to leverage Docker caching layers
