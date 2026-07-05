@@ -1,4 +1,4 @@
-# 🚀 DockPulse
+# 🚀 InfraDeck        
 
 DockPulse is a self-hosted, lightweight **Internal Developer Platform (IDP)** and server control center. It combines a modern asynchronous backend with a responsive streaming interface to provide real-time hardware telemetry and container orchestration directly from a clean web UI.
 
