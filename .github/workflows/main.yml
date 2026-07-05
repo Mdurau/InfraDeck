@@ -45,6 +45,7 @@ jobs:
           npm run lint
 
   # --- STAGE 2: COMPILE & DOCKER BUILD ---
+  # --- STAGE 2: COMPILE & DOCKER BUILD ---
   build-production-images:
     needs: lint-and-validate
     runs-on: ubuntu-latest
@@ -53,7 +54,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        # Enables advanced caching layers for faster builds
         uses: actions/setup-buildx-action@v3
 
       - name: Build Production Backend Image
@@ -61,7 +61,7 @@ jobs:
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          push: false # Set to true later when connecting to DockerHub/GitHub Registry
+          push: false
           tags: dockpulse-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
