@@ -1,0 +1,52 @@
+# ==============================================================================
+# System Specific Files
+# ==============================================================================
+.DS_Store
+Thumbs.db
+*.log
+
+# ==============================================================================
+# Python Backend Configuration
+# ==============================================================================
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python caching rules
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# ==============================================================================
+# Next.js Frontend Configuration
+# ==============================================================================
+# Dependencies
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+# Next.js production/development build outputs
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Frontend testing & logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.turbo/
+
+# ==============================================================================
+# Local Environment Variables & Secrets (CRITICAL SECURITY)
+# ==============================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env

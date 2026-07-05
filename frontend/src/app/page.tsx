@@ -111,9 +111,16 @@ export default function Dashboard() {
 
   // 2. FIXED: Triggers background fetch after initial paint to prevent cascading render warnings
   useEffect(() => {
-    fetchContainers();
+    const timer = setTimeout(() => {
+      fetchContainers();
+    }, 0);
+
     const interval = setInterval(fetchContainers, 4000); 
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleAction = async (id: string, action: 'start' | 'stop' | 'restart') => {
